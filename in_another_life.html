@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>In Another Life</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f001a, #2a0055);
+            color: #fff;
+            text-align: center;
+            padding: 40px 20px;
+            margin: 0;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 620px;
+            margin: 0 auto;
+            background: rgba(20, 0, 40, 0.85);
+            padding: 40px 30px;
+            border-radius: 25px;
+            box-shadow: 0 0 40px rgba(180, 0, 255, 0.6);
+        }
+        h1 { font-size: 2.8em; margin: 0 0 10px; text-shadow: 0 0 15px #cc66ff; }
+        p { opacity: 0.9; margin-bottom: 30px; }
+        button {
+            background: #aa00ff;
+            color: white;
+            border: none;
+            padding: 16px 50px;
+            font-size: 1.6em;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 10px;
+            transition: 0.3s;
+        }
+        button:hover { background: #dd44ff; transform: scale(1.08); }
+        .visualizer {
+            height: 120px;
+            background: #000;
+            margin: 25px 0;
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+        .lyrics {
+            text-align: left;
+            background: rgba(0,0,0,0.4);
+            padding: 20px;
+            border-radius: 12px;
+            line-height: 1.7;
+            font-size: 1.15em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>In Another Life</h1>
+        <p>Dreamy Synth Ballad • Looping</p>
+        
+        <button onclick="togglePlay()" id="playBtn">▶ Play Song</button>
+        <button onclick="stopSong()">⏹ Stop</button>
+        
+        <div class="visualizer" id="viz"></div>
+        
+        <div class="lyrics">
+            <strong>Lyrics:</strong><br><br>
+            In another life, we'd meet again<br>
+            Under stars that never end<br>
+            Your hand in mine, through endless time<br>
+            No more goodbyes, just you and I<br><br>
+            
+            Whispers carried on the wind<br>
+            Calling out your name again<br>
+            Two hearts aligned in parallel skies<br>
+            In another life... our love never dies<br><br>
+            <em>(Soft chorus repeats...)</em>
+        </div>
+    </div>
+
+    <script>
+        let ctx, gain, isPlaying = false, timer, anim;
+        let melody = [
+            {f: 261.63, d: 0.6}, {f: 293.66, d: 0.6}, {f: 329.63, d: 1.2},
+            {f: 349.23, d: 0.6}, {f: 392.00, d: 1.8},
+            {f: 440.00, d: 0.6}, {f: 493.88, d: 0.6}, {f: 523.25, d: 2.4},
+            
+            {f: 392.00, d: 0.6}, {f: 440.00, d: 0.6}, {f: 493.88, d: 1.2},
+            {f: 523.25, d: 0.6}, {f: 493.88, d: 1.8},
+            {f: 440.00, d: 1}, {f: 392.00, d: 1}, {f: 349.23, d: 2.4},
+            
+            {f: 523.25, d: 1}, {f: 587.33, d: 1}, {f: 659.25, d: 1}, {f: 698.46, d: 1},
+            {f: 659.25, d: 2}, {f: 587.33, d: 1}, {f: 523.25, d: 3}
+        ];
+
+        function init() {
+            if (!ctx) {
+                ctx = new (window.AudioContext || window.webkitAudioContext)();
+                gain = ctx.createGain();
+                gain.gain.value = 0.35;
+                gain.connect(ctx.destination);
+            }
+        }
+
+        function playNote(freq, duration, timeOffset, type = 'sine') {
+            const osc = ctx.createOscillator();
+            const noteGain = ctx.createGain();
+            
+            osc.type = type;
+            osc.frequency.value = freq;
+            
+            osc.connect(noteGain);
+            noteGain.connect(gain);
+            
+            const start = ctx.currentTime + timeOffset;
+            osc.start(start);
+            noteGain.gain.setValueAtTime(0.9, start);
+            noteGain.gain.linearRampToValueAtTime(0.01, start + duration);
+            osc.stop(start + duration + 0.1);
+        }
+
+        function playSong() {
+            let time = 0;
+            melody.forEach((note, i) => {
+                const type = i % 4 === 0 ? 'sawtooth' : (i % 3 === 0 ? 'triangle' : 'sine');
+                playNote(note.f, note.d, time, type);
+                time += note.d;
+            });
+
+            // Loop
+            timer = setTimeout(() => {
+                if (isPlaying) playSong();
+            }, time * 1000 + 300);
+        }
+
+        function togglePlay() {
+            init();
+            const btn = document.getElementById('playBtn');
+            
+            if (!isPlaying) {
+                isPlaying = true;
+                btn.textContent = '⏸ Pause';
+                playSong();
+                startVisualizer();
+            } else {
+                isPlaying = false;
+                btn.textContent = '▶ Play Song';
+                clearTimeout(timer);
+            }
+        }
+
+        function stopSong() {
+            isPlaying = false;
+            clearTimeout(timer);
+            document.getElementById('playBtn').textContent = '▶ Play Song';
+            cancelAnimationFrame(anim);
+        }
+
+        function startVisualizer() {
+            const viz = document.getElementById('viz');
+            viz.innerHTML = '';
+            const bars = [];
+            
+            for (let i = 0; i < 28; i++) {
+                const bar = document.createElement('div');
+                bar.style.position = 'absolute';
+                bar.style.bottom = '4px';
+                bar.style.left = (i * 22) + 'px';
+                bar.style.width = '16px';
+                bar.style.background = i % 2 === 0 ? '#ff44ff' : '#aa88ff';
+                bar.style.borderRadius = '4px';
+                viz.appendChild(bar);
+                bars.push(bar);
+            }
+            
+            function animate() {
+                bars.forEach(bar => {
+                    const h = 30 + Math.random() * 85;
+                    bar.style.height = h + 'px';
+                });
+                anim = requestAnimationFrame(animate);
+            }
+            animate();
+        }
+    </script>
+</body>
+</html>
